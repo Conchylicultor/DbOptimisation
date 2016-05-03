@@ -32,7 +32,13 @@ object Main extends App {
     projEn.print
   """
   
-  def pgrm = pgrmA
+  def pgrmD = dsl"""
+    val schema = Schema("number", "digit")
+    val R = Relation.scan("data/R.csv", schema, "|")
+    R.print
+  """
+  
+  def pgrm = pgrmD
   
   val compiler = new RelationCompiler(Context)
 
