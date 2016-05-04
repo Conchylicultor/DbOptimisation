@@ -16,24 +16,24 @@ import relation.shallow._
 class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val schemaAnalysis: SchemaAnalysis) extends RelationLowering(IR, schemaAnalysis) {
   import IR.Predef._
   
-  //type LoweredRelation = Rep[Array[Array[Any]]] // [ColumnId] [ColumnContent]
-  type LoweredRelation = Rep[Array[String]] // [ColumnId] [ColumnContent]
+  type LoweredRelation = Rep[Array[Array[String]]] // [ColumnId] [ColumnContent]
   
   def relationScan(scanner: Rep[RelationScanner], schema: Schema, size: Rep[Int], resultSchema: Schema): LoweredRelation = {
     val nbColumn = schema.size
     val nbRow = size
-    //val a = Array.ofDim[String](3, 2)
     dsl"""
-        val arraySize = $nbColumn * $nbRow // We add 1 for the number of column
-        val arrResult = new Array[String](arraySize)
+
+        // Initialisation of the array
+        var arrResult = new Array[Array[String]]($nbColumn)
+        for (i <- 0 until $nbColumn) {
+            arrResult(i) = new Array[String]($nbRow)
+        }
+        
+        // We fill the array
         var i = 0
-        println( $nbColumn )
-        println( $nbRow )
         while($scanner.hasNext) {
-            var j = 0
             for(j <- 0 until $nbColumn) {
-                arrResult(j*$nbRow + i) = $scanner.next_string()
-                println( "Value of j: " + j + " : " + arrResult(j*$nbRow + i))
+                arrResult(j)(i) = $scanner.next_string()
             }
             i = i + 1
         }
@@ -56,10 +56,18 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
   def relationPrint(relation: Rep[Relation]): Unit = {
     val arr = getRelationLowered(relation)
     dsl"""
-        for (i <- 0 until $arr.length) {
-            println($arr(i))
+        val nbColumn = $arr.length
+        val nbRow = $arr(0).length
+        for (i <- 0 until nbRow) {
+            var str = ""
+            for (j <- 0 until nbColumn) {
+                str = str + $arr(j)(i)
+                if (j != nbColumn-1) {
+                    str = str + "|"
+                }
+            }
+            println(str)
         }
-        println("Hi!")
     """
   }
   
