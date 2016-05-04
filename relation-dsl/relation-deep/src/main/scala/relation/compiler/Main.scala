@@ -35,10 +35,24 @@ object Main extends App {
   def pgrmD = dsl"""
     val schema = Schema("number", "digit")
     val R = Relation.scan("data/R.csv", schema, "|")
-    R.print
+    val proj = R.project(Schema("digit"))
+    proj.print
+    val proj2 = R.project(Schema("number"))
+    proj2.print
   """
   
-  def pgrm = pgrmD
+  def pgrmE = dsl"""
+    val schema = Schema("number", "digit")
+    val R = Relation.scan("data/R.csv", schema, "|")
+    val sel = R.select(x => x.getField(schema, "number") == "one")
+    val sel2 = R.select(x => x.getField(schema, "digit") == "2")
+    val sel3 = R.select(x => x.getField(schema, "digit") == "5")
+    sel.print
+    sel2.print
+    sel3.print
+  """
+  
+  def pgrm = pgrmE
   
   val compiler = new RelationCompiler(Context)
 
