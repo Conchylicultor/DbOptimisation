@@ -39,6 +39,8 @@ object Main extends App {
     proj.print
     val proj2 = R.project(Schema("number"))
     proj2.print
+    val proj3 = R.project(Schema("digit", "number"))
+    proj3.print
   """
   
   def pgrmE = dsl"""
@@ -52,7 +54,15 @@ object Main extends App {
     sel3.print
   """
   
-  def pgrm = pgrmE
+  def pgrmF = dsl"""
+    val schema = Schema("number", "digit")
+    val R = Relation.scan("data/R.csv", schema, "|")
+    val R2 = Relation.scan("data/R.csv", schema, "|")
+    val sel2 = R.join(R2, "digit", "digit")
+    sel2.print
+  """
+  
+  def pgrm = pgrmF
   
   val compiler = new RelationCompiler(Context)
 

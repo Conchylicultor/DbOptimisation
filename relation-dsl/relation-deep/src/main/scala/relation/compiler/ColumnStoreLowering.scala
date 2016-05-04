@@ -42,35 +42,68 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
   }
   
   def relationProject(relation: Rep[Relation], schema: Schema, resultSchema: Schema): LoweredRelation = {
-    
     //
     val nbColumnResult = resultSchema.size
-    println(resultSchema.size + " " + schema.size)
-    println(schema.indexOf(resultSchema.columns(0)))
+    val originSchema = getRelationSchema(relation)
+    
+    println("Start projection dim " + originSchema.size + " on dim " + nbColumnResult)
     
     // Get the column idx
-    var arrIdx = Array[Int](nbColumnResult)
+    var arrIdx = new Array[Int](nbColumnResult)
     var i = 0
     resultSchema.columns.foreach {resultColStr =>
-        schema.columns.foreach {colStr =>
-            println(colStr + " " + resultColStr)
+        originSchema.columns.foreach {colStr =>
             if (resultColStr == colStr) { // Column match (one by resultColStr)
-                arrIdx(i) = schema.indexOf(colStr)
-                println(arrIdx(i))
+                println("Match for index i " + i)
+                println(colStr + " projected on " + originSchema.indexOf(colStr))
+                arrIdx(i) = originSchema.indexOf(colStr)
+                println("Verif: " + i + " -> " + arrIdx(i))
                 i = i+1
             }
         }
     }
     
+    println("Print array of length " + arrIdx.length)
+    for(i <- 0 until nbColumnResult) {
+        println(i + " -> " + arrIdx(i))
+    }
+    
+    println("Generate associate code")
+    
+    val getArrayColumn = (index: Rep[Int]) => {
+        dsl"$arrIdx($index)"
+    }
+    
     val arr = getRelationLowered(relation)
+
+    var testArray = new Array[Int](2)
+    testArray(0) = 12
+    testArray(1) = 253
+    val textIdx = 0
     dsl"""
-        //println($arrIdx(0))
+        //println($testArray(0))
+        println(${testArray(textIdx)})
         
+        // Initialisation of the array
         var arrResult = new Array[Array[String]]($nbColumnResult)
+
+        // Select the columns
+        for(i <- 0 until $nbColumnResult) {
+            //println(i + " -> " + $arrIdx(i))
+            //println(i + " -> " + $getArrayColumn(i))
+            //arrResult(i) = $arr($getArrayColumn(i)) // We copy th column (by reference)
+        }
         
-        arrResult(0) = $arr(1)
+        // Return result
         arrResult
     """
+        
+        /*// We keep only the right columns
+        for(i <- 0 until $nbColumnResult) {
+            println(i + " -> " + ${arrIdx(i)})
+            //arrResult(i) = $arr(${arrIdx(i)}) // We copy th column (by reference)
+        }
+        println("end")*/
     
     /*val copyRecord: Rep[Any] => Rep[Rec] =
       e => __new[Rec](schema.columns.map(column => (column, false, dsl"__struct_field[String]($e, $column)")): _*)
@@ -111,7 +144,7 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
     
     /*
     // Get the column idx
-    var arrIdx = Array[Int](nbColumnResult)
+    var arrIdx = new Array[Int](nbColumnResult)
     var i = 0
     resultSchema.columns.foreach {resultColStr =>
         schema.columns.foreach {colStr =>
@@ -148,7 +181,7 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
     
     dsl"""
         // Could probably optimize this part (iterate just one time instead of twice)
-        println($idxField)
+        //println($idxField)
         
         // Count nb of occurence
         var size = 0
@@ -157,7 +190,7 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
                 size = size + 1
             }
         }
-        println("Found " + size)
+        //println("Found " + size)
         
         // Initialisation of the array
         var arrResult = new Array[Array[String]]($nbColumn)
@@ -180,7 +213,73 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
   }
   
   def relationJoin(leftRelation: Rep[Relation], rightRelation: Rep[Relation], leftKey: String, rightKey: String, resultSchema: Schema): LoweredRelation = {
-    ??? // TODO
+    val leftSchema = getRelationSchema(leftRelation)
+    val rightSchema = getRelationSchema(rightRelation)
+    
+    val idxKeyLeft  = leftSchema.indexOf(leftKey)
+    val idxKeyRight = rightSchema.indexOf(rightKey)
+    
+    val nbColumnResult = leftSchema.size + rightSchema.size - 1 // The joint belong to both of the schemas
+    
+    val arrLeft = getRelationLowered(leftRelation)
+    val arrRight = getRelationLowered(rightRelation)
+    
+    dsl"""
+        // Count the number of row and store the idx
+        //var listIdx = List[(Int, Int)]()
+        var maxSize = 10*($arrLeft($idxKeyLeft).length + $arrRight($idxKeyRight).length) // We suppose we don't do massive joints (should be replaced by list!)
+        var listIdx = new Array[(Int, Int)](maxSize)
+        var currentIdx = 0
+        for (i <- 0 until $arrLeft($idxKeyLeft).length) { // Iterate over the column
+            for (j <- 0 until $arrRight($idxKeyRight).length) {
+                if ($arrLeft($idxKeyLeft)(i) == $arrRight($idxKeyRight)(j)) { // Match
+                    //listIdx :+ (i, j)
+                    listIdx(currentIdx) = (i, j)
+                    //println(i + " : " + j)
+                    currentIdx = currentIdx + 1
+                }
+            }
+        }
+        listIdx(currentIdx) = (-1,-1) // The end
+        //println(listIdx.size)
+        
+        // Initialize the array
+        val nbRow = currentIdx // This correspond to the number of match we did
+        var arrResult = new Array[Array[String]]($nbColumnResult)
+        for (i <- 0 until $nbColumnResult) {
+            arrResult(i) = new Array[String](nbRow)
+        }
+        
+        // Fill the array
+        for (i <- 0 until nbRow) { // Iterate over the elements
+            var savedIndex = listIdx(i)
+            var currentColumnIdx = 0
+            for (j <- 0 until $nbColumnResult) { // Iterate over the elements
+                var value = ""
+                if (j < $arrLeft.length-1) { // The first columns belong to the left (-1 for the key)
+                    if(currentColumnIdx == $idxKeyLeft) { // We skip the key
+                        currentColumnIdx = currentColumnIdx + 1
+                    }
+                    value = $arrLeft(currentColumnIdx)(savedIndex._1)
+                }
+                else if (j == $arrLeft.length-1) { // Middle column: the key
+                    currentColumnIdx = -1 // Reset the current idx (-1 because of the +1 at the end)
+                    value = $arrLeft($idxKeyLeft)(savedIndex._1) // == value = $arrRight($idxKeyRight)(savedIndex._2)
+                }
+                else { // Last columns: right
+                    if(currentColumnIdx == $idxKeyRight) { // We skip the key
+                        currentColumnIdx = currentColumnIdx + 1
+                    }
+                    value = $arrRight(currentColumnIdx)(savedIndex._2)
+                }
+                
+                arrResult(j)(i) = value
+                currentColumnIdx = currentColumnIdx + 1
+            }
+        }
+        
+        arrResult
+    """
   }
   
   def relationPrint(relation: Rep[Relation]): Unit = {
