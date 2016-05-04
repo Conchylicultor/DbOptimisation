@@ -1,3 +1,7 @@
+/*
+By Etienne Pot
+*/
+
 package relation
 package compiler
 

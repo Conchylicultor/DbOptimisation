@@ -74,6 +74,38 @@ object Main extends App {
     sel4.print
   """
   
+  def pgrmG = dsl"""
+    println("loading__________")
+    val schemaPerson = Schema("name", "surname", "jobTitle")
+    val schemaSex = Schema("name2", "surname2", "sex")
+    val schemaSalaries = Schema("jobTitle2", "monthlySalary")
+    
+    println("loadingpers__________")
+    val person = Relation.scan("data/person.csv", schemaPerson, "|")
+    person.print
+    println("loadingsex__________")
+    val sex = Relation.scan("data/sex.csv", schemaSex, "|")
+    sex.print
+    println("loadingsalar__________")
+    val salaries = Relation.scan("data/salaries.csv", schemaSalaries, "|")
+    salaries.print
+    
+    val join1 = person.join(sex, "name", "name2")
+    val join2 = join1.join(salaries, "jobTitle", "jobTitle2")
+    
+    println("join____________")
+    join1.print
+    println("join____________")
+    join2.print
+  """
+  
+  def pgrmH = dsl"""
+    val En = Relation.scan("data/R.csv", Schema("number", "digit"), "|")
+    val Fr = Relation.scan("data/S.csv", Schema("digit2", "nombre"), "|")
+    val P = En.join(Fr, "digit", "nombre")
+    P.print
+  """
+  
   def pgrmTotal = dsl"""
     println("Test selection -------")
     $pgrmE
@@ -84,7 +116,7 @@ object Main extends App {
   """
   
   //def pgrm = pgrmTotal
-  def pgrm = pgrmB
+  def pgrm = pgrmG
   
   val compiler = new RelationCompiler(Context)
 
