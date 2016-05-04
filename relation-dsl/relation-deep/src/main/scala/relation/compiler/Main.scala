@@ -116,7 +116,7 @@ object Main extends App {
   """
   
   //def pgrm = pgrmTotal
-  def pgrm = pgrmG
+  def pgrm = pgrmTotal
   
   val compiler = new RelationCompiler(Context)
 

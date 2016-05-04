@@ -174,15 +174,11 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
             var currentColumnIdx = 0
             for (j <- 0 until $nbColumnResult) { // Iterate over the elements
                 var value = ""
-                if (j < $arrLeft.length-1) { // The first columns belong to the left (-1 for the key)
-                    if(currentColumnIdx == $idxKeyLeft) { // We skip the key
-                        currentColumnIdx = currentColumnIdx + 1
-                    }
+                if (j < $arrLeft.length) { // The first columns belong to the left
                     value = $arrLeft(currentColumnIdx)(savedIndex._1)
-                }
-                else if (j == $arrLeft.length-1) { // Middle column: the key
-                    currentColumnIdx = -1 // Reset the current idx (-1 because of the +1 at the end)
-                    value = $arrLeft($idxKeyLeft)(savedIndex._1) // == value = $arrRight($idxKeyRight)(savedIndex._2)
+                    if(currentColumnIdx == $arrLeft.length-1) { // We did reach the end
+                        currentColumnIdx = -1// Reset the current idx (-1 because of the +1 at the end)
+                    }
                 }
                 else { // Last columns: right
                     if(currentColumnIdx == $idxKeyRight) { // We skip the key
