@@ -41,6 +41,8 @@ object Main extends App {
     proj2.print
     val proj3 = R.project(Schema("digit", "number"))
     proj3.print
+    val proj4 = R.project(Schema("number", "digit"))
+    proj4.print
   """
   
   def pgrmE = dsl"""
@@ -56,13 +58,33 @@ object Main extends App {
   
   def pgrmF = dsl"""
     val schema = Schema("number", "digit")
+    val schema2 = Schema("number2", "digit")
     val R = Relation.scan("data/R.csv", schema, "|")
-    val R2 = Relation.scan("data/R.csv", schema, "|")
+    val R2 = Relation.scan("data/R.csv", schema2, "|")
+    val R3 = Relation.scan("data/R.csv", schema, "|")
+    val R4 = Relation.scan("data/R.csv", schema, "|")
     val sel2 = R.join(R2, "digit", "digit")
+    val sel3 = sel2.join(R2, "digit", "digit")
+    val sel4 = sel2.join(R3, "number2", "number")
+    println("simple digit__________")
     sel2.print
+    println("twice digit___________")
+    sel3.print
+    println("digit+number____________")
+    sel4.print
   """
   
-  def pgrm = pgrmF
+  def pgrmTotal = dsl"""
+    println("Test selection -------")
+    $pgrmE
+    println("Test join ------")
+    $pgrmF
+    println("Test project ------")
+    $pgrmD
+  """
+  
+  //def pgrm = pgrmTotal
+  def pgrm = pgrmB
   
   val compiler = new RelationCompiler(Context)
 

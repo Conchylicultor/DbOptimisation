@@ -22,7 +22,6 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
     val nbColumn = schema.size
     val nbRow = size
     dsl"""
-
         // Initialisation of the array
         var arrResult = new Array[Array[String]]($nbColumn)
         for (i <- 0 until $nbColumn) {
@@ -46,7 +45,7 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
     val nbColumnResult = resultSchema.size
     val originSchema = getRelationSchema(relation)
     
-    println("Start projection dim " + originSchema.size + " on dim " + nbColumnResult)
+    // println("Start projection dim " + originSchema.size + " on dim " + nbColumnResult)
     
     // Get the column idx
     var arrIdx = new Array[Int](nbColumnResult)
@@ -54,123 +53,38 @@ class ColumnStoreLowering(override val IR: RelationDSLOpsPackaged, override val 
     resultSchema.columns.foreach {resultColStr =>
         originSchema.columns.foreach {colStr =>
             if (resultColStr == colStr) { // Column match (one by resultColStr)
-                println("Match for index i " + i)
-                println(colStr + " projected on " + originSchema.indexOf(colStr))
+                //println("Match for index i " + i)
+                //println(colStr + " projected on " + originSchema.indexOf(colStr))
                 arrIdx(i) = originSchema.indexOf(colStr)
-                println("Verif: " + i + " -> " + arrIdx(i))
+                //println("Verif: " + i + " -> " + arrIdx(i))
                 i = i+1
             }
         }
     }
     
-    println("Print array of length " + arrIdx.length)
+    /*println("Print array of length " + arrIdx.length)
     for(i <- 0 until nbColumnResult) {
         println(i + " -> " + arrIdx(i))
-    }
+    }*/
     
-    println("Generate associate code")
-    
-    val getArrayColumn = (index: Rep[Int]) => {
-        dsl"$arrIdx($index)"
-    }
+    // Generate code
+    //println("Generate associate code")
     
     val arr = getRelationLowered(relation)
-
-    var testArray = new Array[Int](2)
-    testArray(0) = 12
-    testArray(1) = 253
-    val textIdx = 0
-    dsl"""
-        //println($testArray(0))
-        println(${testArray(textIdx)})
-        
-        // Initialisation of the array
-        var arrResult = new Array[Array[String]]($nbColumnResult)
-
-        // Select the columns
-        for(i <- 0 until $nbColumnResult) {
-            //println(i + " -> " + $arrIdx(i))
-            //println(i + " -> " + $getArrayColumn(i))
-            //arrResult(i) = $arr($getArrayColumn(i)) // We copy th column (by reference)
-        }
-        
-        // Return result
-        arrResult
+    // Initialisation
+    var arrResult = dsl"""
+        new Array[Array[String]]($nbColumnResult)
     """
-        
-        /*// We keep only the right columns
-        for(i <- 0 until $nbColumnResult) {
-            println(i + " -> " + ${arrIdx(i)})
-            //arrResult(i) = $arr(${arrIdx(i)}) // We copy th column (by reference)
-        }
-        println("end")*/
-    
-    /*val copyRecord: Rep[Any] => Rep[Rec] =
-      e => __new[Rec](schema.columns.map(column => (column, false, dsl"__struct_field[String]($e, $column)")): _*)
-    dsl"""
-        // Initialisation of the array
-        var arrResult = new Array[Array[String]]($nbColumnResult)
-        
-        var i = 0
-        $resultSchema.columns.foreach {resultColStr =>
-            println(resultColStr)
-        }
-        println("end")
-        
-        arrResult
-    """*/
-    
-    /*dsl"""
-        // Initialisation of the array
-        var arrResult = new Array[Array[String]]($nbColumnResult)
-        
-        // Get the column idx and feed the array
-        var i = 0
-        $resultSchema.columns.foreach {resultColStr =>
-            var j = 0
-            $schema.columns.foreach {colStr =>
-                if (resultColStr == colStr) { // Column match (one by resultColStr)
-                    println(i + " -> " + j)
-                    //arrResult(i) = $arr(j)
-                    i = i+1
-                }
-                j = j+1
-            }
-        }
-        println("end")
-        
-        arrResult
-    """*/
-    
-    /*
-    // Get the column idx
-    var arrIdx = new Array[Int](nbColumnResult)
-    var i = 0
-    resultSchema.columns.foreach {resultColStr =>
-        schema.columns.foreach {colStr =>
-            if (resultColStr == colStr) { // Column match (one by resultColStr)
-                arrIdx(i) = schema.indexOf(colStr)
-                i = i+1
-            }
-        }
+    // We only keep some of te column
+    for(i <- 0 until nbColumnResult) {
+        dsl"""
+            $arrResult($i) = $arr(${arrIdx(i)}) // We copy th column (by reference)
+        """
     }
-    
-    val arr = getRelationLowered(relation)
-    
+    // We return the result
     dsl"""
-        // Initialisation of the array
-        var arrResult = new Array[Array[String]]($nbColumnResult)
-        
-        for(i <- 0 until $nbColumnResult) {
-            println(i)
-            //println($arrIdx(i))
-            println(i + " -> " + $arrIdx(i))
-            arrResult(i) = $arr($arrIdx(i)) // We copy th column (by reference)
-        }
-        println("end")
-        
-        arrResult
-    """*/
+        $arrResult
+    """
   }
   
   def relationSelect(relation: Rep[Relation], field: String, value: Rep[String], resultSchema: Schema): LoweredRelation = {
